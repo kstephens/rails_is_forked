@@ -1,6 +1,39 @@
 = rails_is_forked
 
-Description goes here.
+Rails does not clear ConnectionPool in Process.fork children:
+
+  puts "Parent #{$$}: #{ActiveRecord::Base.connection.object_id}"
+  fork { puts "Child: #{$$}: #{ActiveRecord::Base.connection.object_id}" }
+  Thread.new { puts "Thread: #{ActiveRecord::Base.connection.object_id}" }
+
+Sample Output:
+
+  Parent 27282: 153210860
+  Child: 29777: 153210860
+  Thread: 153076390
+
+Note that Threads get their own connections, but subprocesses do not.
+
+A ConnectionPool exists for each ActiveRecord::Base subclass that has been sent :establish_connection.
+
+  puts "Parent #{$$}: #{ActiveRecord::Base.connection_pool.object_id}"
+  fork { puts "Child: #{$$}: #{ActiveRecord::Base.connection_pool.object_id}" }
+  Thread.new { puts "Thread: #{ActiveRecord::Base.connection_pool.object_id}" }
+
+Sample Output:
+
+Parent 30003: 102371950
+Child: 30053: 102371950
+Thread: 102371950
+
+Note that ConnectionPools are only uniq per process.
+
+This gem adds: 
+
+* RailsIsForked::ForkCallback:
+** Callbacks in children (and parents) of Process.fork (and Kernel.fork).  This is useful for non-Rails apps.
+* RailsIsForked::Rails:
+** Calls ActiveRecord::ConnectionAdapters::ConnectionPool#disconnect! for all instances in forked children.  See ActiveRecord::Base.connection_handler.connection_pools.
 
 == Contributing to rails_is_forked
  

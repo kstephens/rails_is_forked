@@ -1,0 +1,16 @@
+cabar:
+  version: v1.0
+
+  component:
+    version: v1.0
+    description: 'rails_is_forked - Create new DB connections in forked children.'
+
+  provides:
+    bin: true
+    lib/ruby: lib
+    cnu_config_path: true
+    tests: spec
+
+  requires:
+    component:
+      ruby: true
