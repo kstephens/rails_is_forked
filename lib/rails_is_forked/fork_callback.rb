@@ -3,6 +3,15 @@ module RailsIsForked
   module ForkCallback
     def self.included target
       super
+      target.class_eval do
+        include ModuleMethods
+        alias :fork_without_callback :fork unless method_defined? :fork_without_callback
+        alias :fork :fork_with_callback
+      end
+    end
+
+    def self.extended target
+      super
       target.extend(ModuleMethods)
       target.instance_eval do
         alias :fork_without_callback :fork unless method_defined? :fork_without_callback
@@ -10,8 +19,8 @@ module RailsIsForked
       end
     end
 
-    CALLBACK_IN_CHILD = [ ]
-    CALLBACK_IN_PARENT = [ ]
+    CALLBACK_IN_CHILD  = [ ] unless defined? CALLBACK_IN_CHILD
+    CALLBACK_IN_PARENT = [ ] unless defined? CALLBACK_IN_PARENT
 
     def self.add_callback_in_child! proc = nil, &block
       proc ||= block
@@ -52,8 +61,9 @@ module RailsIsForked
         end
       end
     end
+
+    ::Kernel.send(:include, self)
+    ::Process.send(:extend, self)
   end
 
-  Kernel.send(:include, ForkCallback)
-  Process.send(:include, ForkCallback)
 end

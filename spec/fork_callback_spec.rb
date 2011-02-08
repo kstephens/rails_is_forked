@@ -57,4 +57,18 @@ describe "ForkCallback" do
       Process.exit! 0
     end
   end
+
+  it "should invoke callbacks with fork { ... }" do
+    result = fork do 
+      @child_pid = $$
+      @child_proc_called.should == 1
+    end
+    # puts "#{$$} result = #{result.inspect}"
+    sleep 1
+    result.should_not == @parent_pid
+    result.should == @child_pid
+    @parent_proc_called.should == 1
+  end
+
 end
+
