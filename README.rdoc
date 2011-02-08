@@ -22,11 +22,24 @@ A ConnectionPool exists for each ActiveRecord::Base subclass that has been sent 
 
 Sample Output:
 
-Parent 30003: 102371950
-Child: 30053: 102371950
-Thread: 102371950
+  Parent 30003: 102371950
+  Child: 30053: 102371950
+  Thread: 102371950
 
 Note that ConnectionPools are only uniq per process.
+
+Using rails_is_forked:
+
+  require 'rails_is_forked/rails'
+  puts "Parent #{$$}: #{ActiveRecord::Base.connection.object_id}"
+  fork { puts "Child: #{$$}: #{ActiveRecord::Base.connection.object_id}" }
+  Thread.new { puts "Thread: #{ActiveRecord::Base.connection.object_id}" }
+
+Sample Output:
+
+  Parent 31583: 90260550
+  Child: 31627: 152197900
+  Thread: 151738880
 
 This gem adds: 
 
