@@ -45,7 +45,7 @@ Sample Output:
   Parent after fork: 31583: 90260550
   Thread: 151738880
 
-== Strategy ==
+== Strategy
 
 The naive solution is #disconnect! all database connections at the beginning of each 
 forked child process.  However, most database connection adapters and APIs do not provide a mechanism for:
@@ -58,18 +58,17 @@ The FD is shared between the parent process and its children; its resources are 
 
 Since the parent can still "talk" on the FD, asking the child to close its inherited FD and reconnect without affecting the parent process is practically impossible.
 
-It seems the most "portable" solution without digging deep into each and every database adapter, is to #disconnect! all the connections in the parent process *before* forking the children.  However this is likely to cause problems if the parent is in an active transaction when the child is forked, since the child will likely send "termination commands" for a connection that is in an active transaction which will cause the parent's transaction to be effectively aborted.
+The most "portable" solution without digging deep into each and every database adapter, is to #disconnect! all the connections in the parent process *before* forking the children.  However this is likely to cause problems if the parent is in an active transaction when the child is forked, since the child will likely send "termination commands" for a connection that is in an active transaction which will cause the parent's transaction to be effectively aborted.
 
 At the risk of leaking memory and FDs in long running child processes, a safe solution is to "forget", not #disconnect!, all connections at the beginning of the forked child processes.
 
 For long-running child processes, it's probably best for the parent process to forcefully #disconnect! (and remove from their ConnectionPools) all its connections, before forking children and outside a transaction, to insure there are no connections leaked in the children.  This can be done by calling ActiveRecord::Base.connection_handler.clear_all_connections! before Process.fork.
 
+== Functionality
 
-== Functionality ==
-
-* RailsIsForked::ForkCallback:
-** Callbacks in children (and parents) of Process.fork (and Kernel.fork).  This is useful for non-Rails apps.
-* RailsIsForked::Rails:
+* RailsIsForked::ForkCallback
+** Callbacks in children (and parents) of Process.fork (and Kernel#fork).  This is useful for non-Rails apps.
+* RailsIsForked::Rails
 ** Calls ActiveRecord::ConnectionAdapters::ConnectionPool#disconnect! for all instances in forked children.  See ActiveRecord::Base.connection_handler.connection_pools.
 
 == Contributing to rails_is_forked
