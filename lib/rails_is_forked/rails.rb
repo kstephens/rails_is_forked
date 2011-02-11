@@ -12,6 +12,12 @@ module RailsIsForked
       return if @@once
       @@once = true
 
+if false
+      # Register callback to disconnect connections before forking child processes.
+      proc = RailsIsForked::ForkCallback.add_callback_before_child! do | child_pid |
+        ActiveRecord::Base.connection_handler.clear_all_connections!
+      end
+else
       # Register callback to call forget connections in child processes.
       proc = RailsIsForked::ForkCallback.add_callback_in_child! do | child_pid |
         ActiveRecord::Base.connection_handler.connection_pools.each_value do | pool |
@@ -19,6 +25,7 @@ module RailsIsForked
           pool.forget_all_connections!
         end
       end
+end
       # $stderr.puts "Registered callback #{proc}"
     end
 
