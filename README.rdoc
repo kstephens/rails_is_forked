@@ -48,30 +48,30 @@ Sample Output:
 == Strategy
 
 The naive solution is #disconnect! all database connections at the beginning of each 
-forked child process.  However, most database connection adapters and APIs do not provide mechanisms for:
+forked child process.  However the child will likely send "termination commands" to a database handle that is still active in the parent.
 
-1) closing the low-level file descriptor (FD),
-2) resetting the database client library handle (ex: gem pg) without sending a "termination command" along the FD, as this is usually done in the database client code (see libpq sources for "X"),
-3) automatically reconnecting the database handle after the FD has been closed.
+The database handle's FD is shared between the parent process and its children; its resources are not likely to be reclaimed in the database server until all processes close() their FDs.  
 
-The FD is shared between the parent process and its children; its resources are not likely to be reclaimed in the database server until all processes close() their FDs.
-
-Since the parent can still "talk" on the FD, asking the child to close its inherited FD and reconnect without affecting the parent process is practically impossible.
-
-The most "portable" solution without digging deep into each and every database adapter, is to #disconnect! all the connections in the parent process *before* forking the children.  However this is likely to cause problems if the parent is in an active transaction when the child is forked, since the child will likely send "termination commands" for a connection that is in an active transaction which will cause the parent's transaction to be effectively aborted.
+Another "portable" solution is to #disconnect! all the connections in the parent process *before* forking the children.  This doesn't require digging deep into each and every database adapter.   However this is likely to cause problems if the parent is in an active transaction when the child is forked.
 
 At the risk of leaking memory and FDs in long running child processes, a safe solution is to "forget", not #disconnect!, all connections at the beginning of the forked child processes.  The GC should eventually reap the ActiverRecord connection and the underlying handle, but may leave the FD still open, until the child process dies, because ActiveRecord connections and database handles do not have finalizers.
 
 If a database handle has a finalizer and it sends "termination commands", forgetting connections in the child could still affect parent processes.
 
-The correct solution is:
+The correct solution is: close the FDs in the database handles and forget the connections in the child. 
+
+However, most database connection adapters and APIs do not provide mechanisms for:
+
+1) closing the low-level file descriptor (FD),
+2) resetting the database client library handle (ex: gem pg) without sending a "termination command" along the FD, as this is usually done in the database client code (see libpq sources for "X"),
+3) automatically reconnecting the database handle after the FD has been closed.
 
 Database client handles should:
 
 1) have a notion of the "owning process id" of the handle.
 2) send "termination commands" only if the current process is the owning process.
 3) should have a "close" method, that simply closes its FD, but does not send "termination commands".
-4) should call "close" or "disconnect" on finalization.
+4) should call "close" or "disconnect" on finalization, depending on if the handle is owned by the current process or not.
 
 ActiveRecord connection objects should disconnect database handles on finalization.
 
