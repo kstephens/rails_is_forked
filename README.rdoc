@@ -47,23 +47,22 @@ Sample Output:
 
 == Strategy ==
 
-The naive solution is the close all database connections at the beginning of each 
+The naive solution is #disconnect! all database connections at the beginning of each 
 forked child process.  However, most database connection adapters and APIs do not provide a mechanism for:
 
 1) closing the low-level file descriptor (FD),
-2) resetting the connection abstraction without sending a "termination command" along the file descriptor.
+2) resetting the connection abstraction without sending a "termination command" along the file descriptor, as this is usually done in the database client code (see libpq sources for "X"),
 3) automatically reconnecting the abstraction after the FD has been closed.
 
-The FD is shared between the parent process and its children; its resources are not reclaimed until 
-all processes close() them.
+The FD is shared between the parent process and its children; its resources are not likely to be reclaimed in the database server until all processes close() their FDs.
 
 Since the parent can still "talk" on the FD, asking the child to close its inherited FD and reconnect without affecting the parent process is practically impossible.
 
-This seems the most "portable" solution without digging deep into each and every database adapter, is to close all the connections in the parent process *before* forking the children.  However this is likely to cause problems if the parent is in a active transaction when the child is forked.
+It seems the most "portable" solution without digging deep into each and every database adapter, is to #disconnect! all the connections in the parent process *before* forking the children.  However this is likely to cause problems if the parent is in an active transaction when the child is forked, since the child will likely send "termination commands" for a connection that is in an active transaction which will cause the parent's transaction to be effectively aborted.
 
 At the risk of leaking memory and FDs in long running child processes, a safe solution is to "forget", but not disconnect or close, all connections at the beginning of the forked child processes.
 
-For long-running child processes, it's probably best for the parent process to forcefully close all its connections outside a transaction to insure they are not leaked in the children.
+For long-running child processes, it's probably best for the parent process to forcefully #disconnect! (and remove from their ConnectionPools) all its connections outside a transaction to insure they are not leaked in the children.
 
 == Functionality ==
 
