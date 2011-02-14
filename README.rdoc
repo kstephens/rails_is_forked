@@ -60,9 +60,10 @@ Since the parent can still "talk" on the FD, asking the child to close its inher
 
 It seems the most "portable" solution without digging deep into each and every database adapter, is to #disconnect! all the connections in the parent process *before* forking the children.  However this is likely to cause problems if the parent is in an active transaction when the child is forked, since the child will likely send "termination commands" for a connection that is in an active transaction which will cause the parent's transaction to be effectively aborted.
 
-At the risk of leaking memory and FDs in long running child processes, a safe solution is to "forget", but not disconnect or close, all connections at the beginning of the forked child processes.
+At the risk of leaking memory and FDs in long running child processes, a safe solution is to "forget", not #disconnect!, all connections at the beginning of the forked child processes.
 
-For long-running child processes, it's probably best for the parent process to forcefully #disconnect! (and remove from their ConnectionPools) all its connections outside a transaction to insure they are not leaked in the children.
+For long-running child processes, it's probably best for the parent process to forcefully #disconnect! (and remove from their ConnectionPools) all its connections, before forking children and outside a transaction, to insure there are no connections leaked in the children.  This can be done by calling ActiveRecord::Base.connection_handler.clear_all_connections! before Process.fork.
+
 
 == Functionality ==
 
