@@ -1,20 +1,22 @@
 = rails_is_forked
 
-Rails does not clear ConnectionPool in Process.fork children:
+Rails does not clear ConnectionPool and reestablish connections in Process.fork children:
 
-  puts "Parent #{$$}: #{ActiveRecord::Base.connection.object_id}"
+  puts "Parent: #{$$}: #{ActiveRecord::Base.connection.object_id}"
   fork { puts "Child: #{$$}: #{ActiveRecord::Base.connection.object_id}" }
+  puts "Parent after fork: #{$$}: #{ActiveRecord::Base.connection.object_id}"
   Thread.new { puts "Thread: #{ActiveRecord::Base.connection.object_id}" }
 
 Sample Output:
 
-  Parent 27282: 153210860
+  Parent: 27282: 153210860
   Child: 29777: 153210860
+  Parent after fork: 27282: 153210860
   Thread: 153076390
 
 Note that Threads get their own connections, but subprocesses do not.
 
-A ConnectionPool exists for each ActiveRecord::Base subclass that has been sent :establish_connection.
+A ConnectionPool exists for each ActiveRecord::Base subclass that has been sent #establish_connection.
 
   puts "Parent #{$$}: #{ActiveRecord::Base.connection_pool.object_id}"
   fork { puts "Child: #{$$}: #{ActiveRecord::Base.connection_pool.object_id}" }
@@ -26,22 +28,44 @@ Sample Output:
   Child: 30053: 102371950
   Thread: 102371950
 
-Note that ConnectionPools are only uniq per process.
+Note that ConnectionPools are only unique per process.
 
 Using rails_is_forked:
 
   require 'rails_is_forked/rails'
   puts "Parent #{$$}: #{ActiveRecord::Base.connection.object_id}"
   fork { puts "Child: #{$$}: #{ActiveRecord::Base.connection.object_id}" }
+  puts "Parent after fork: #{$$}: #{ActiveRecord::Base.connection.object_id}"
   Thread.new { puts "Thread: #{ActiveRecord::Base.connection.object_id}" }
 
 Sample Output:
 
   Parent 31583: 90260550
   Child: 31627: 152197900
+  Parent after fork: 31583: 90260550
   Thread: 151738880
 
-This gem adds: 
+== Strategy ==
+
+The naive solution is the close all database connections at the beginning of each 
+forked child process.  However, most database connection adapters and APIs do not provide a mechanism for:
+
+1) closing the low-level file descriptor (FD),
+2) resetting the connection abstraction without sending a "termination command" along the file descriptor.
+3) automatically reconnecting the abstraction after the FD has been closed.
+
+The FD is shared between the parent process and its children; its resources are not reclaimed until 
+all processes close() them.
+
+Since the parent can still "talk" on the FD, asking the child to close its inherited FD and reconnect without affecting the parent process is practically impossible.
+
+This seems the most "portable" solution without digging deep into each and every database adapter, is to close all the connections in the parent process *before* forking the children.  However this is likely to cause problems if the parent is in a active transaction when the child is forked.
+
+At the risk of leaking memory and FDs in long running child processes, a safe solution is to "forget", but not disconnect or close, all connections at the beginning of the forked child processes.
+
+For long-running child processes, it's probably best for the parent process to forcefully close all its connections outside a transaction to insure they are not leaked in the children.
+
+== Functionality ==
 
 * RailsIsForked::ForkCallback:
 ** Callbacks in children (and parents) of Process.fork (and Kernel.fork).  This is useful for non-Rails apps.

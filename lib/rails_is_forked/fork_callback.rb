@@ -20,6 +20,7 @@ module RailsIsForked
     end
 
     CALLBACK_IN_CHILD  = [ ] unless defined? CALLBACK_IN_CHILD
+    CALLBACK_BEFORE_CHILD = [ ] unless defined? CALLBACK_BEFORE_CHILD
     CALLBACK_IN_PARENT = [ ] unless defined? CALLBACK_IN_PARENT
 
     def self.add_callback_in_child! proc = nil, &block
@@ -30,6 +31,16 @@ module RailsIsForked
     def self.remove_callback_in_child! proc
       CALLBACK_IN_CHILD.delete(proc)
     end
+
+    def self.add_callback_before_child! proc = nil, &block
+      proc ||= block
+      CALLBACK_BEFORE_CHILD << proc
+      proc
+    end
+    def self.remove_callback_before_child! proc
+      CALLBACK_BEFORE_CHILD.delete(proc)
+    end
+
     def self.add_callback_in_parent! proc = nil, &block
       proc ||= block
       CALLBACK_IN_PARENT << proc
@@ -40,7 +51,9 @@ module RailsIsForked
     end
 
     module ModuleMethods
+      # TODO: Might need to do this in a critical section.
       def fork_with_callback *args
+        CALLBACK_BEFORE_CHILD.each { | proc | proc.call($$) }
         if block_given?
           result = fork_without_callback do
             CALLBACK_IN_CHILD.each { | proc | proc.call($$) }

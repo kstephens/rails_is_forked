@@ -15,8 +15,8 @@ Jeweler::Tasks.new do |gem|
   gem.name = "rails_is_forked"
   gem.homepage = "http://github.com/kstephens/rails_is_forked"
   gem.license = "MIT"
-  gem.summary = %Q{TODO: one-line summary of your gem}
-  gem.description = %Q{TODO: longer description of your gem}
+  gem.summary = %Q{Deal with resources (DB connections, etc) in forked Rails processes.}
+  gem.description = %Q{See http://github.com/kstephens/rails_is_forked}
   gem.email = "ks.github@kurtstephens.com"
   gem.authors = ["Kurt Stephens"]
   # Include your dependencies below. Runtime dependencies are required when using your gem,
