@@ -79,10 +79,12 @@ For long-running child processes, it's probably best for the parent process to f
 
 == Functionality
 
-* RailsIsForked::ForkCallback
-** Callbacks in children (and parents) of Process.fork (and Kernel#fork).  This is useful for non-Rails apps.
 * RailsIsForked::Rails
 ** Calls ActiveRecord::ConnectionAdapters::ConnectionPool#disconnect! for all instances in forked children.  See ActiveRecord::Base.connection_handler.connection_pools.
+
+== See Also
+
+* http://github.com/kstephens/ruby_is_forked
 
 == Contributing to rails_is_forked
  

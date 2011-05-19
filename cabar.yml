@@ -12,3 +12,5 @@ cabar:
   requires:
     component:
       ruby: true
+      ruby_is_forked: true
+

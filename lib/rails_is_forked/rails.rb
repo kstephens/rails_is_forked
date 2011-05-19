@@ -1,4 +1,4 @@
-require 'rails_is_forked/fork_callback'
+require 'ruby_is_forked/fork_callback'
 
 require 'active_record/connection_adapters/abstract/connection_pool'
 
@@ -14,7 +14,7 @@ module RailsIsForked
 
 if true
       # Register callback to call forget connections in child processes.
-      proc = RailsIsForked::ForkCallback.add_callback_in_child! do | child_pid |
+      proc = RubyIsForked::ForkCallback.add_callback_in_child! do | child_pid |
         ActiveRecord::Base.connection_handler.connection_pools.each_value do | pool |
           # Naive solution:
           # pool.disconnect!
@@ -36,7 +36,7 @@ else
       # Failure/Error: ActiveRecord::Base.transaction do
       # not connected
       #
-      proc = RailsIsForked::ForkCallback.add_callback_before_child! do | child_pid |
+      proc = RubyIsForked::ForkCallback.add_callback_before_child! do | child_pid |
         ActiveRecord::Base.connection_handler.clear_all_connections!
       end
 end
